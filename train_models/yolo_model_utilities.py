@@ -26,7 +26,7 @@ from utilities_augmentation import (add_salt_and_pepper_noise,
 
 # Load config
 
-with open(os.path.join(os.path.join('files', 'user_config.json')), 'r', encoding='utf-8') as f:
+with open(os.path.join(os.path.join('train_directory', 'user_config.json')), 'r', encoding='utf-8') as f:
     config = json.load(f)
 
 # Sample's info
@@ -41,7 +41,7 @@ modifications = config['model_information']['modifications']
 crop_size = config['model_information']['crop_size']
 
 # Path to save dataset
-dataset_folder = os.path.join('files', 'train', model_name)
+dataset_folder = os.path.join('datasets', model_name)
 
 def make_dataset_directory(dataset_folder, dataset_name):
     """
@@ -158,16 +158,16 @@ def save_polygons(all_polygons, file_name_save, directory):
     with open(os.path.join(dataset_folder,
                            'labels',
                            directory,
-                           file_name_save + '.txt'),
-                           'w', encoding='utf-8') as f:
+                           file_name_save.replace('.jpg', '.txt')),
+                           'w', encoding='utf-8') as file:
       for polygon in all_polygons:
           for p_, p in enumerate(polygon):
               if p_ == len(polygon) - 1:
-                  f.write('{}\n'.format(p))
+                  file.write('{}\n'.format(p))
               elif p_ == 0:
-                  f.write('0 {} '.format(p))
+                  file.write('0 {} '.format(p))
               else:
-                  f.write('{} '.format(p))
+                  file.write('{} '.format(p))
 
 def save_subset(images, directory, modifications=False):
     for file_name in images[0:]:
@@ -228,5 +228,15 @@ def save_subset(images, directory, modifications=False):
                         quality=100,
                         optimize=False)
                 save_polygons(all_polygons,
-                            file_name_save,
+                            file_name_save_new,
                             directory)
+
+def make_model_config(config_path, object_type):
+    with open(config_path,
+            'w',
+            encoding='utf-8') as file:
+        file.write(f'path: {model_name}\n')
+        file.write('train: images/train\n')
+        file.write('val: images/val\n')
+        file.write('nc: 1\n')
+        file.write(f'names: ["{object_type}"]\n')
