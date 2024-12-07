@@ -3,22 +3,9 @@ Script to train model for tubule NORI segmentation
 """
 
 # import libraries
-import numpy as np
-import pandas as pd
-import matplotlib.pyplot as plt
-
-from PIL import Image, ImageDraw
-import tifffile
-from tifffile import TiffFile
-import cv2
 import os
-from imantics import Polygons, Mask
 import json
-
-import zipfile
-from ultralytics import YOLO, settings
-import shutil
-from matplotlib.patches import Polygon
+from ultralytics import YOLO
 from yolo_model_utilities import (make_dataset_directory,
                                   save_subset,
                                    make_model_config)
@@ -42,13 +29,11 @@ if __name__ == "__main__":
     crop_size = config['model_information']['crop_size']
 
     # Train config
-    model_config = config['train_config']['data']
     epochs = config['train_config']['epochs']
     imgsz = config['train_config']['imgsz']
     batch = config['train_config']['batch']
     patience = config['train_config']['patience']
     overlap_mask = config['train_config']['overlap_mask']
-    augment = config['train_config']['augment']
     object_type = config['train_config']['object_type']
 
     # # Create train directory
@@ -81,6 +66,8 @@ if __name__ == "__main__":
 
     # load a pretrained model (recommended for training)
     model = YOLO('yolov8n-seg.pt')
+    model_dir = os.path.join('train_directory',
+                                    'models')
 
     # train the model
     model.train(data=config_path,
@@ -89,10 +76,11 @@ if __name__ == "__main__":
                 batch=batch,
                 patience=patience,
                 overlap_mask=overlap_mask,
-                augment=augment,
                 name=model_name,
                 exist_ok=True,
-                project=os.path.join('train_directory',
-                                    'models')
-                                    )
-    time.sleep(1000)
+                project=model_dir)
+
+    # Rename model
+    model_path = os.path.join(model_dir, model_name, 'weights', 'best.pt')
+    model_custom_path = os.path.join(model_dir, model_name, 'weights', model_name + '.pt')
+    os.rename(model_path, model_custom_path)

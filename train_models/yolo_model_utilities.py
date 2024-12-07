@@ -170,6 +170,9 @@ def save_polygons(all_polygons, file_name_save, directory):
                   file.write('{} '.format(p))
 
 def save_subset(images, directory, modifications=False):
+    """
+    Save train and validation datasets for YOLO segmentation format
+    """
     for file_name in images[0:]:
         file_name_save = file_name.split('.')[0]
 
@@ -232,6 +235,9 @@ def save_subset(images, directory, modifications=False):
                             directory)
 
 def make_model_config(config_path, object_type):
+    """
+    Create config for ultralitic library
+    """
     with open(config_path,
             'w',
             encoding='utf-8') as file:
