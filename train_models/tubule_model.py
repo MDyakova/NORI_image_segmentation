@@ -87,5 +87,5 @@ if __name__ == "__main__":
 
     # Rename model
     model_path = os.path.join(model_dir, model_name, 'weights', 'best.pt')
-    model_custom_path = os.path.join(model_dir, model_name, 'weights', model_name + '.pt')
+    model_custom_path = os.path.join(model_dir, model_name, model_name + '.pt')
     os.rename(model_path, model_custom_path)
