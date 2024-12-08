@@ -6,9 +6,10 @@ Script to train model for tubule NORI segmentation
 import os
 import json
 from ultralytics import YOLO
-from yolo_model_utilities import (make_dataset_directory,
-                                  save_subset,
-                                   make_model_config)
+from dataset_utilities import ( save_subset,
+                                   make_yolo_config,
+                                   make_dataset_directory,
+                                   train_val_split)
 import time
 
 if __name__ == "__main__":
@@ -36,7 +37,7 @@ if __name__ == "__main__":
     overlap_mask = config['tubule_yolo_model']['train_config']['overlap_mask']
     object_type = config['tubule_yolo_model']['train_config']['object_type']
 
-    # # Create train directory
+    # Create train directory
     make_dataset_directory(os.path.join('datasets'), model_name)
     dataset_folder = os.path.join('datasets', model_name)
 
@@ -44,25 +45,27 @@ if __name__ == "__main__":
     # settings.update({"datasets_dir": dataset_folder})
 
     # Split to train and validation subsets
-    all_files = os.listdir(nori_images)
-    test_groups = all_files[int(len(all_files)*0.8):]
-
-    train_images = list(filter(lambda p: (p not in test_groups), all_files))
-    val_images = list(filter(lambda p: (p in test_groups), all_files))
+    train_images, val_images = train_val_split(nori_images)
 
     # save train subset
     save_subset(train_images,
                 'train',
+                dataset_folder,
+                crop_size,
+                target_type='labels',
                 modifications=modifications)
     # save validation subset
     save_subset(val_images,
                 'val',
+                dataset_folder,
+                crop_size,
+                target_type='labels',
                 modifications=False)
 
     # # Create config for yolo training
     config_path = os.path.join('datasets',
                             model_name + '.yaml')
-    make_model_config(config_path, object_type)
+    make_yolo_config(config_path, object_type, model_name)
 
     # load a pretrained model (recommended for training)
     model = YOLO('yolov8n-seg.pt')

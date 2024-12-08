@@ -1,5 +1,5 @@
 """
-Functions for train scripts
+Functions for yolo train scripts
 """
 
 # import libraries
@@ -26,7 +26,9 @@ from utilities_augmentation import (add_salt_and_pepper_noise,
 
 # Load config
 
-with open(os.path.join(os.path.join('train_directory', 'user_config.json')), 'r', encoding='utf-8') as f:
+with open(os.path.join(os.path.join('train_directory', 'user_config.json')),
+          'r',
+          encoding='utf-8') as f:
     config = json.load(f)
 
 # Sample's info
@@ -35,13 +37,13 @@ protein_layer = config['data_information']['protein_layer']
 lipid_layer = config['data_information']['lipid_layer']
 tubule_masks_layer = config['data_information']['tubule_masks_layer']
 
-# Model's info
-model_name = config['tubule_yolo_model']['model_information']['model_name']
-modifications = config['tubule_yolo_model']['model_information']['modifications']
-crop_size = config['tubule_yolo_model']['model_information']['crop_size']
+# # Model's info
+# model_name = config['tubule_yolo_model']['model_information']['model_name']
+# modifications = config['tubule_yolo_model']['model_information']['modifications']
+# crop_size = config['tubule_yolo_model']['model_information']['crop_size']
 
-# Path to save dataset
-dataset_folder = os.path.join('datasets', model_name)
+# # Path to save dataset
+# dataset_folder = os.path.join('datasets', model_name)
 
 def make_dataset_directory(dataset_folder, dataset_name):
     """
@@ -56,6 +58,17 @@ def make_dataset_directory(dataset_folder, dataset_name):
             os.makedirs(os.path.join(os.path.join(dataset_folder, dataset_name),
                                      folder, set_folder), exist_ok=True)
 
+def train_val_split(nori_images):
+    """
+    Split dataset to train and validation subsets
+    """
+    all_files = os.listdir(nori_images)
+    test_groups = all_files[int(len(all_files)*0.8):]
+
+    train_images = list(filter(lambda p: (p not in test_groups), all_files))
+    val_images = list(filter(lambda p: (p in test_groups), all_files))
+    return train_images, val_images
+
 # polygons for test results
 def get_polygons_predict(mask_label):
     """
@@ -65,7 +78,8 @@ def get_polygons_predict(mask_label):
     polygons = polygons.points
     return polygons
 
-def get_polygons(mask):
+
+def get_polygons(mask, fix_contour=True):
     """
     Convert masks to polygons and fix sizes
     """
@@ -83,16 +97,19 @@ def get_polygons(mask):
         # Filter extrimal values
         if (area>100) & (len(x)>10):
             mask_i = np.zeros(mask.shape, dtype=np.uint8)
-            cv2.drawContours(mask_i,
-                             [contour],
-                             contourIdx=-1,
-                             color=255,
-                             thickness=cv2.FILLED)
-            # Increase polygon size
-            kernel = np.ones((3, 3), np.uint8)
-            mask_new = cv2.dilate(mask_i,
-                                  kernel,
-                                  iterations=4)
+            if fix_contour:
+                cv2.drawContours(mask_i,
+                                [contour],
+                                contourIdx=-1,
+                                color=255,
+                                thickness=cv2.FILLED)
+                # Increase polygon size
+                kernel = np.ones((3, 3), np.uint8)
+                mask_new = cv2.dilate(mask_i,
+                                    kernel,
+                                    iterations=4)
+            else:
+                mask_new = mask_i
             # Get new coordinates
             polygons_new = get_polygons_predict(mask_new)
             polygon_nornalized = []
@@ -151,7 +168,7 @@ def load_images(file_name,
     return all_images, all_masks, all_images_names
 
 # save polygons to txt
-def save_polygons(all_polygons, file_name_save, directory):
+def save_polygons(all_polygons, file_name_save, directory, dataset_folder):
     """
     Save polygon coordinates to txt
     """
@@ -169,13 +186,40 @@ def save_polygons(all_polygons, file_name_save, directory):
               else:
                   file.write('{} '.format(p))
 
-def save_subset(images, directory, modifications=False):
+def save_train_data(image,
+                    dataset_folder,
+                    directory,
+                    file_name_save_new,
+                    target,
+                    target_type):
+    """
+    Function save all neccesary data to train model
+    """
+    file_path_save = os.path.join(dataset_folder,
+                                'images',
+                                directory,
+                                file_name_save_new)
+    image = Image.fromarray(image)
+    image.save(file_path_save,
+            format="JPEG",
+            quality=100,
+            optimize=False)
+    if target_type=='labels':
+        save_polygons(target,
+                        file_name_save_new,
+                        directory,
+                        dataset_folder)
+
+def save_subset(images,
+                directory,
+                dataset_folder,
+                crop_size,
+                modifications=False,
+                target_type='labels'):
     """
     Save train and validation datasets for YOLO segmentation format
     """
     for file_name in images[0:]:
-        file_name_save = file_name.split('.')[0]
-
         (all_images,
         all_masks,
         all_images_names) = load_images(file_name,
@@ -184,6 +228,9 @@ def save_subset(images, directory, modifications=False):
         for image, mask, image_name in zip(all_images, all_masks, all_images_names):
             # Extract all pokygons from mask
             all_polygons = get_polygons(mask)
+            # Select target
+            if target_type=='labels':
+                target = all_polygons
             # Convert array to RGB format
             im = (image*255).transpose((1, 2, 0)).astype(np.uint8)
             width = im.shape[0]
@@ -206,35 +253,24 @@ def save_subset(images, directory, modifications=False):
                             # Keep water layer 0
                             noise_im[:, :, 2] = 0
                             # Convert to image
-                            noise_im = Image.fromarray(noise_im)
+                            # noise_im = Image.fromarray(noise_im)
                             file_name_save_new = '_'.join([image_name, str(k), str(prob)]) + '.jpg'
-                            file_path_save = os.path.join(dataset_folder,
-                                                        'images',
-                                                        directory,
-                                                        file_name_save_new)
-                            noise_im.save(file_path_save,
-                                        format="JPEG",
-                                        quality=100,
-                                        optimize=False)
-                            save_polygons(all_polygons,
-                                        file_name_save_new,
-                                        directory)
+                            save_train_data(noise_im,
+                                            dataset_folder,
+                                            directory,
+                                            file_name_save_new,
+                                            target,
+                                            target_type)
             else:
                 file_name_save_new = image_name + '.jpg'
-                file_path_save = os.path.join(dataset_folder,
-                                            'images',
-                                            directory,
-                                            file_name_save_new)
-                im = Image.fromarray(im)
-                im.save(file_path_save,
-                        format="JPEG",
-                        quality=100,
-                        optimize=False)
-                save_polygons(all_polygons,
-                            file_name_save_new,
-                            directory)
+                save_train_data(im,
+                                dataset_folder,
+                                directory,
+                                file_name_save_new,
+                                target,
+                                target_type)
 
-def make_model_config(config_path, object_type):
+def make_yolo_config(config_path, object_type, model_name):
     """
     Create config for ultralitic library
     """
