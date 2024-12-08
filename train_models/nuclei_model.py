@@ -7,7 +7,8 @@ import os
 import json
 
 from dataset_utilities import (make_dataset_directory,
-                       train_val_split)
+                                train_val_split,
+                                save_subset)
 
 import time
 
@@ -22,6 +23,7 @@ if __name__ == "__main__":
     protein_layer = config['data_information']['protein_layer']
     lipid_layer = config['data_information']['lipid_layer']
     tubule_masks_layer = config['data_information']['tubule_masks_layer']
+    nuclei_masks_layer = config['data_information']['tubule_masks_layer']
 
     # Model's info
     model_name = config['nuclei_unet_model']['model_information']['model_name']
@@ -34,5 +36,20 @@ if __name__ == "__main__":
 
     # Split to train and validation subsets
     train_images, val_images = train_val_split(nori_images)
+
+        # save train subset
+    save_subset(train_images,
+                'train',
+                dataset_folder,
+                crop_size,
+                target_type='masks',
+                modifications=modifications)
+    # save validation subset
+    save_subset(val_images,
+                'val',
+                dataset_folder,
+                crop_size,
+                target_type='masks',
+                modifications=False)
 
     time.sleep(10000)

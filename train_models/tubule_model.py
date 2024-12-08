@@ -7,9 +7,9 @@ import os
 import json
 from ultralytics import YOLO
 from dataset_utilities import ( save_subset,
-                                   make_yolo_config,
                                    make_dataset_directory,
                                    train_val_split)
+from model_utilities import make_yolo_config
 import time
 
 if __name__ == "__main__":
@@ -52,15 +52,17 @@ if __name__ == "__main__":
                 'train',
                 dataset_folder,
                 crop_size,
-                target_type='labels',
-                modifications=modifications)
+                object='tubule',
+                modifications=modifications,
+                model_type='yolo')
     # save validation subset
     save_subset(val_images,
                 'val',
                 dataset_folder,
                 crop_size,
-                target_type='labels',
-                modifications=False)
+                object='tubule',
+                modifications=False,
+                model_type='yolo')
 
     # # Create config for yolo training
     config_path = os.path.join('datasets',
