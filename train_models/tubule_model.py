@@ -24,17 +24,17 @@ if __name__ == "__main__":
     tubule_masks_layer = config['data_information']['tubule_masks_layer']
 
     # Model's info
-    model_name = config['model_information']['model_name']
-    modifications = config['model_information']['modifications']
-    crop_size = config['model_information']['crop_size']
+    model_name = config['tubule_yolo_model']['model_information']['model_name']
+    modifications = config['tubule_yolo_model']['model_information']['modifications']
+    crop_size = config['tubule_yolo_model']['model_information']['crop_size']
 
     # Train config
-    epochs = config['train_config']['epochs']
-    imgsz = config['train_config']['imgsz']
-    batch = config['train_config']['batch']
-    patience = config['train_config']['patience']
-    overlap_mask = config['train_config']['overlap_mask']
-    object_type = config['train_config']['object_type']
+    epochs = config['tubule_yolo_model']['train_config']['epochs']
+    imgsz = config['tubule_yolo_model']['train_config']['imgsz']
+    batch = config['tubule_yolo_model']['train_config']['batch']
+    patience = config['tubule_yolo_model']['train_config']['patience']
+    overlap_mask = config['tubule_yolo_model']['train_config']['overlap_mask']
+    object_type = config['tubule_yolo_model']['train_config']['object_type']
 
     # # Create train directory
     make_dataset_directory(os.path.join('datasets'), model_name)

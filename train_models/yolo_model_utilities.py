@@ -36,9 +36,9 @@ lipid_layer = config['data_information']['lipid_layer']
 tubule_masks_layer = config['data_information']['tubule_masks_layer']
 
 # Model's info
-model_name = config['model_information']['model_name']
-modifications = config['model_information']['modifications']
-crop_size = config['model_information']['crop_size']
+model_name = config['tubule_yolo_model']['model_information']['model_name']
+modifications = config['tubule_yolo_model']['model_information']['modifications']
+crop_size = config['tubule_yolo_model']['model_information']['crop_size']
 
 # Path to save dataset
 dataset_folder = os.path.join('datasets', model_name)
