@@ -36,7 +36,7 @@ nori_images = config['data_information']['nori_images']
 protein_layer = config['data_information']['protein_layer']
 lipid_layer = config['data_information']['lipid_layer']
 tubule_masks_layer = config['data_information']['tubule_masks_layer']
-nuclei_masks_layer = config['data_information']['tubule_masks_layer']
+nuclei_masks_layer = config['data_information']['nuclei_masks_layer']
 
 def make_dataset_directory(dataset_folder, dataset_name, target_name='labels'):
     """
@@ -208,12 +208,12 @@ def save_train_data(image,
                         directory,
                         dataset_folder)
     elif model_type=='unet':
-        target = Image.fromarray(target)
+        target = Image.fromarray((target).astype(np.uint8))
         mask_path_save = os.path.join(dataset_folder,
                             'masks',
                             directory,
                             file_name_save_new)
-        target.save(file_path_save,
+        target.save(mask_path_save,
                     format="JPEG",
                     quality=100,
                     optimize=False)

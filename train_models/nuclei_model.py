@@ -31,7 +31,9 @@ if __name__ == "__main__":
     crop_size = config['nuclei_unet_model']['model_information']['crop_size']
 
     # Create train directory
-    make_dataset_directory(os.path.join('datasets'), model_name)
+    make_dataset_directory(os.path.join('datasets'),
+                           model_name,
+                           target_name='masks')
     dataset_folder = os.path.join('datasets', model_name)
 
     # Split to train and validation subsets
@@ -42,14 +44,16 @@ if __name__ == "__main__":
                 'train',
                 dataset_folder,
                 crop_size,
-                target_type='masks',
-                modifications=modifications)
+                object='nuclei',
+                modifications=modifications,
+                model_type='unet')
     # save validation subset
     save_subset(val_images,
                 'val',
                 dataset_folder,
                 crop_size,
-                target_type='masks',
-                modifications=False)
+                object='nuclei',
+                modifications=False,
+                model_type='unet')
 
     time.sleep(10000)
