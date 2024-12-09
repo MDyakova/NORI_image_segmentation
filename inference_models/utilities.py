@@ -22,6 +22,8 @@ from tqdm import tqdm_notebook
 import zipfile
 import shutil
 from matplotlib.patches import Polygon
+from collections import defaultdict
+from itertools import combinations
 
 
 import os
@@ -128,39 +130,95 @@ def tubule_contours(tubule_results,
     Function convert yolo predictions to masks
     """
     for result in tubule_results:
-        try:
-            for mask, prob in zip(result.masks.data, result.boxes.conf.cpu().numpy()):
-                if (np.array(mask.cpu()).sum()>2000):
-                    if prob>tubule_prob:
-                        # Convert mask to polygons
-                        # Model can return complex masks.
-                        # In this case function finds few polygons.
-                        mask = np.array(mask.cpu()) * 255
-                        mask = cv2.resize(mask, (width_crop, height_crop))
-                        polygons = get_polygons_predict(mask)
+        # try:
+        for mask, prob in zip(result.masks.data, result.boxes.conf.cpu().numpy()):
+            if (np.array(mask.cpu()).sum()>2000):
+                if prob>tubule_prob:
+                    # Convert mask to polygons
+                    # Model can return complex masks.
+                    # In this case function finds few polygons.
+                    mask = np.array(mask.cpu()) * 255
+                    mask = cv2.resize(mask, (width_crop, height_crop))
+                    polygons = get_polygons_predict(mask)
 
-                        # For each polygon set keep only with high area
-                        all_poligons_i = []
-                        for polygon in polygons:
-                            x, y = polygon[:, 0], polygon[:, 1]
-                            contour_i = np.array([[x[i], y[i]] for i in range(len(x))], dtype=np.int32).reshape((-1, 1, 2))
-                            area_i = cv2.contourArea(contour_i)
-                            if area_i>2000:
-                                all_poligons_i.append([polygon, area_i])
+                    # For each polygon set keep only with high area
+                    all_poligons_i = []
+                    for polygon in polygons:
+                        x, y = polygon[:, 0], polygon[:, 1]
+                        contour_i = np.array([[x[i], y[i]] for i in range(len(x))], dtype=np.int32).reshape((-1, 1, 2))
+                        area_i = cv2.contourArea(contour_i)
+                        if area_i>2000:
+                            all_poligons_i.append([polygon, area_i])
 
-                        # For each good polygon make mask and add unique id and probability to whole masks
-                        if len(all_poligons_i)>0:
-                            polygon = all_poligons_i[np.argmax([i[1] for i in all_poligons_i])][0]
-                            x, y = polygon[:, 0], polygon[:, 1]
-                            contour_i = np.array([[x[i], y[i]] for i in range(len(x))], dtype=np.int32).reshape((-1, 1, 2))
-                            mask = np.zeros((width_crop, height_crop), dtype=np.uint8)
-                            cv2.drawContours(mask, [contour_i], contourIdx=-1, color=255, thickness=cv2.FILLED)
+                    # For each good polygon make mask and add unique id and probability to whole masks
+                    if len(all_poligons_i)>0:
+                        polygon = all_poligons_i[np.argmax([i[1] for i in all_poligons_i])][0]
+                        x, y = polygon[:, 0], polygon[:, 1]
+                        contour_i = np.array([[x[i], y[i]] for i in range(len(x))], dtype=np.int32).reshape((-1, 1, 2))
+                        mask = np.zeros((height_crop, width_crop), dtype=np.uint8)
+                        cv2.drawContours(mask, [contour_i], contourIdx=-1, color=255, thickness=cv2.FILLED)
 
-                            mask_for_tubules[step_i:step_i+crop_size, step_j:step_j+crop_size, layer] = np.where(mask>0, int(mask_n),
-                                                                                mask_for_tubules[step_i:step_i+crop_size, step_j:step_j+crop_size, layer])
-                            mask_for_prob[step_i:step_i+crop_size, step_j:step_j+crop_size] = np.where((mask>0), prob*100,
-                                                                            mask_for_prob[step_i:step_i+crop_size, step_j:step_j+crop_size])
-                        mask_n+=1
-        except Exception as e:
-            print(e)
+                        mask_for_tubules[step_i:step_i+crop_size, step_j:step_j+crop_size, layer] = np.where(mask>0, int(mask_n),
+                                                                            mask_for_tubules[step_i:step_i+crop_size, step_j:step_j+crop_size, layer])
+                        mask_for_prob[step_i:step_i+crop_size, step_j:step_j+crop_size] = np.where((mask>0), prob*100,
+                                                                        mask_for_prob[step_i:step_i+crop_size, step_j:step_j+crop_size])
+                    mask_n+=1
+        # except Exception as e:
+        #     print(e)
     return mask_for_tubules, mask_for_prob, mask_n
+
+
+def join_pairs(pairs):
+    """
+    Function to join mask pairs
+    """
+    # Create a dictionary to map each element to its group
+    groups = defaultdict(set)
+
+    # Iterate over pairs and add them to the corresponding group
+    for pair in pairs:
+        a, b = pair
+        # Merge the groups of a and b
+        group_a = groups[a]
+        group_b = groups[b]
+        combined_group = group_a | group_b | {a, b}
+        # Update both a and b's groups with the combined group
+        for elem in combined_group:
+            groups[elem] = combined_group
+
+    # Remove duplicates and return the result
+    unique_groups = set(frozenset(group) for group in groups.values())
+    return [list(group) for group in unique_groups]
+
+def find_similar_contours_fast(image_for_masks):
+    mask_id, numbers = np.unique(image_for_masks.reshape(-1), return_counts=True)
+    mask_numbers = dict(zip(mask_id, numbers))
+    groups_short = [image_for_masks[i, j, :] for i in range(image_for_masks.shape[0]) for j in range(image_for_masks.shape[1])]
+    groups_short = [sorted(list(set(group)))[1:] for group in groups_short]
+    groups_short = [group for group in groups_short if len(group)>1]
+
+    # Dictionary to store pair counts
+    pair_counts = defaultdict(int)
+    # Loop through each sublist and generate pairs
+    for sublist in groups_short:
+        for pair in combinations(sorted(sublist), 2):  # Generate sorted pairs to avoid (1, 2) and (2, 1) being counted separately
+            pair_counts[pair] += 1
+    # Convert the defaultdict to a regular dictionary for better readability (optional)
+    pair_counts = dict(pair_counts)
+
+    pairs = []
+    for key, value in pair_counts.items():
+        value_0 = mask_numbers[key[0]]
+        value_1 = mask_numbers[key[1]]
+        k = value/min(value_0, value_1)
+        if k>0.2:
+            pairs.append(key)
+
+    merged_pairs = join_pairs(pairs)
+
+    for group in merged_pairs:
+        main_id = group[0]
+        for similar_id in group[1:]:
+            image_for_masks[image_for_masks == similar_id] = main_id
+    image_for_masks_max = image_for_masks.max(axis=2)
+    return image_for_masks_max

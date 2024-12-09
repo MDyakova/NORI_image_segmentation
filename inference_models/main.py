@@ -42,7 +42,8 @@ from torchvision import models
 from utilities import (make_output_directory,
                        image_filter,
                        image_to_unet,
-                       tubule_contours)
+                       tubule_contours,
+                       find_similar_contours_fast)
 from train_models.model_utilities import UNet
 # from train_models.dataset_utilities import get_polygons_predict
 
@@ -147,7 +148,7 @@ if __name__ == "__main__":
                     nuclei_results = (nuclei_results > nuclei_prob).float()  # Binarize prediction
                     nuclei_results = nuclei_results.squeeze().cpu().numpy()
                     nuclei_results = np.array(Image.fromarray(nuclei_results.astype(np.uint8)*255)
-                                              .resize((height_crop, width_crop)))
+                                              .resize((width_crop, height_crop)))
 
                     # Add tubule polygons to whole masks
                     (mask_for_tubules,
@@ -168,12 +169,14 @@ if __name__ == "__main__":
                     # Add nuclei polygons to whole masks
                     mask_for_nuclei[step_i:step_i+crop_size,
                                     step_j:step_j+crop_size] = np.where(nuclei_results>0, 1,
-                                                nuclei_results[step_i:step_i+crop_size,
+                                                mask_for_nuclei[step_i:step_i+crop_size,
                                                                step_j:step_j+crop_size])
 
-                    break
-                break
+                #     break
+                # break
+            # Join all crop masks to real contours
+            all_masks = find_similar_contours_fast(mask_for_tubules)
             break
 
-time.sleep(1000)
+# time.sleep(1000)
 
