@@ -2,6 +2,11 @@
 Script to launch all model segmentation for new samples
 """
 
+import sys
+import os
+# Append the parent directory of `train_models` to the Python path
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+
 # import libraries
 import numpy as np
 import pandas as pd
@@ -40,6 +45,8 @@ from utilities import (make_output_directory,
 from train_models.model_utilities import UNet
 
 import time
+
+# time.sleep(10000)
 
 if __name__ == "__main__":
 
@@ -126,20 +133,23 @@ if __name__ == "__main__":
                     # Make crop and filter them
                     image_crop = image[:, i:i+crop_size, j:j+crop_size]
                     image_crop = image_filter(image, image_crop, is_crop=True)
-                    image_crop = (image_crop * 255).astype(np.uint8)
+                    image_crop = (image_crop*255).transpose((1, 2, 0)).astype(np.uint8)
+                    # image_crop = (image_crop * 255).astype(np.uint8)
                     height_crop, width_crop, _ = image_crop.shape
 
                     # Get tubule predictions
                     tubule_results = tubule_model(image_crop)
 
                     # Get nuclei predictions
-                    image_for_unet = image_to_unet(image_crop).to(device)
+                    image_for_unet = image_to_unet(image_crop, crop_size).to(device)
                     nuclei_results = nuclei_model(image_for_unet)
                     nuclei_results = (nuclei_results > 0.9).float()  # Binarize prediction
                     nuclei_results = nuclei_results.squeeze().cpu().numpy()
-
                     nuclei_results = np.array(Image.fromarray(nuclei_results.astype(np.uint8)*255)
                                               .resize((height_crop, width_crop)))
+                    break
+                break
+            break
 
-
+time.sleep(1000)
 

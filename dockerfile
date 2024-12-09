@@ -13,8 +13,13 @@ RUN pip3 install --no-cache-dir --upgrade pip && \
 # Copy train directory
 COPY train_models /train_models
 RUN chmod -R 777 /train_models
-WORKDIR /train_models
+
+# Copy inference directory
+COPY inference_models /inference_models
+RUN chmod -R 777 /inference_models
+
+WORKDIR /inference_models
 
 # Launch code
 ENTRYPOINT ["python"]
-CMD ["tubule_model.py"]
+CMD ["main.py"]
