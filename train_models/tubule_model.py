@@ -15,7 +15,7 @@ import time
 if __name__ == "__main__":
 
     # Load config
-    with open(os.path.join(os.path.join('train_directory','user_config.json')), 'r', encoding='utf-8') as f:
+    with open(os.path.join(os.path.join('train_directory','train_config.json')), 'r', encoding='utf-8') as f:
         config = json.load(f)
 
     # Sample's info
@@ -30,12 +30,12 @@ if __name__ == "__main__":
     crop_size = config['tubule_yolo_model']['model_information']['crop_size']
 
     # Train config
-    epochs = config['tubule_yolo_model']['train_config']['epochs']
-    imgsz = config['tubule_yolo_model']['train_config']['imgsz']
-    batch = config['tubule_yolo_model']['train_config']['batch']
-    patience = config['tubule_yolo_model']['train_config']['patience']
-    overlap_mask = config['tubule_yolo_model']['train_config']['overlap_mask']
-    object_type = config['tubule_yolo_model']['train_config']['object_type']
+    epochs = config['tubule_yolo_model']['model_config']['epochs']
+    imgsz = config['tubule_yolo_model']['model_config']['imgsz']
+    batch = config['tubule_yolo_model']['model_config']['batch']
+    patience = config['tubule_yolo_model']['model_config']['patience']
+    overlap_mask = config['tubule_yolo_model']['model_config']['overlap_mask']
+    object_type = config['tubule_yolo_model']['model_config']['object_type']
 
     # Create train directory
     make_dataset_directory(os.path.join('datasets'), model_name)

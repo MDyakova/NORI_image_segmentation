@@ -26,7 +26,7 @@ from augmentation_utilities import (add_salt_and_pepper_noise,
 
 # Load config
 
-with open(os.path.join(os.path.join('train_directory', 'user_config.json')),
+with open(os.path.join(os.path.join('train_directory', 'train_config.json')),
           'r',
           encoding='utf-8') as f:
     config = json.load(f)

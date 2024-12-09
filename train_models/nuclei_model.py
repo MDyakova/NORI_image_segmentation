@@ -20,7 +20,7 @@ import time
 if __name__ == "__main__":
 
     # Load config
-    with open(os.path.join(os.path.join('train_directory','user_config.json')), 'r', encoding='utf-8') as f:
+    with open(os.path.join(os.path.join('train_directory','train_config.json')), 'r', encoding='utf-8') as f:
         config = json.load(f)
 
     # Sample's info
@@ -36,10 +36,10 @@ if __name__ == "__main__":
     crop_size = config['nuclei_unet_model']['model_information']['crop_size']
 
     # Train config
-    epochs = config['nuclei_unet_model']['train_config']['epochs']
-    batch = config['nuclei_unet_model']['train_config']['batch']
-    patience = config['nuclei_unet_model']['train_config']['patience']
-    learning_rate = config['nuclei_unet_model']['train_config']['learning_rate']
+    epochs = config['nuclei_unet_model']['model_config']['epochs']
+    batch = config['nuclei_unet_model']['model_config']['batch']
+    patience = config['nuclei_unet_model']['model_config']['patience']
+    learning_rate = config['nuclei_unet_model']['model_config']['learning_rate']
 
     # Create train directory
     make_dataset_directory(os.path.join('datasets'),
