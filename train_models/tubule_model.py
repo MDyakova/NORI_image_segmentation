@@ -6,15 +6,16 @@ Script to train model for tubule NORI segmentation
 import os
 import json
 from ultralytics import YOLO
-from yolo_model_utilities import (make_dataset_directory,
-                                  save_subset,
-                                   make_model_config)
+from dataset_utilities import ( save_subset,
+                                   make_dataset_directory,
+                                   train_val_split)
+from model_utilities import make_yolo_config
 import time
 
 if __name__ == "__main__":
 
     # Load config
-    with open(os.path.join(os.path.join('train_directory','user_config.json')), 'r', encoding='utf-8') as f:
+    with open(os.path.join(os.path.join('train_directory','train_config.json')), 'r', encoding='utf-8') as f:
         config = json.load(f)
 
     # Sample's info
@@ -24,19 +25,19 @@ if __name__ == "__main__":
     tubule_masks_layer = config['data_information']['tubule_masks_layer']
 
     # Model's info
-    model_name = config['model_information']['model_name']
-    modifications = config['model_information']['modifications']
-    crop_size = config['model_information']['crop_size']
+    model_name = config['tubule_yolo_model']['model_information']['model_name']
+    modifications = config['tubule_yolo_model']['model_information']['modifications']
+    crop_size = config['tubule_yolo_model']['model_information']['crop_size']
 
     # Train config
-    epochs = config['train_config']['epochs']
-    imgsz = config['train_config']['imgsz']
-    batch = config['train_config']['batch']
-    patience = config['train_config']['patience']
-    overlap_mask = config['train_config']['overlap_mask']
-    object_type = config['train_config']['object_type']
+    epochs = config['tubule_yolo_model']['model_config']['epochs']
+    imgsz = config['tubule_yolo_model']['model_config']['imgsz']
+    batch = config['tubule_yolo_model']['model_config']['batch']
+    patience = config['tubule_yolo_model']['model_config']['patience']
+    overlap_mask = config['tubule_yolo_model']['model_config']['overlap_mask']
+    object_type = config['tubule_yolo_model']['model_config']['object_type']
 
-    # # Create train directory
+    # Create train directory
     make_dataset_directory(os.path.join('datasets'), model_name)
     dataset_folder = os.path.join('datasets', model_name)
 
@@ -44,25 +45,29 @@ if __name__ == "__main__":
     # settings.update({"datasets_dir": dataset_folder})
 
     # Split to train and validation subsets
-    all_files = os.listdir(nori_images)
-    test_groups = all_files[int(len(all_files)*0.8):]
-
-    train_images = list(filter(lambda p: (p not in test_groups), all_files))
-    val_images = list(filter(lambda p: (p in test_groups), all_files))
+    train_images, val_images = train_val_split(nori_images)
 
     # save train subset
     save_subset(train_images,
                 'train',
-                modifications=modifications)
+                dataset_folder,
+                crop_size,
+                object='tubule',
+                modifications=modifications,
+                model_type='yolo')
     # save validation subset
     save_subset(val_images,
                 'val',
-                modifications=False)
+                dataset_folder,
+                crop_size,
+                object='tubule',
+                modifications=False,
+                model_type='yolo')
 
     # # Create config for yolo training
     config_path = os.path.join('datasets',
                             model_name + '.yaml')
-    make_model_config(config_path, object_type)
+    make_yolo_config(config_path, object_type, model_name)
 
     # load a pretrained model (recommended for training)
     model = YOLO('yolov8n-seg.pt')
@@ -82,5 +87,5 @@ if __name__ == "__main__":
 
     # Rename model
     model_path = os.path.join(model_dir, model_name, 'weights', 'best.pt')
-    model_custom_path = os.path.join(model_dir, model_name, 'weights', model_name + '.pt')
+    model_custom_path = os.path.join(model_dir, model_name, model_name + '.pt')
     os.rename(model_path, model_custom_path)
