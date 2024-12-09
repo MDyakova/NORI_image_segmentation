@@ -41,8 +41,11 @@ from torchvision import models
 
 from utilities import (make_output_directory,
                        image_filter,
-                       image_to_unet)
+                       image_to_unet,
+                       tubule_contours)
 from train_models.model_utilities import UNet
+# from train_models.dataset_utilities import get_polygons_predict
+
 
 import time
 
@@ -71,6 +74,8 @@ if __name__ == "__main__":
     tubule_model_path = config['models']['tubule_model']
     nuclei_model_path = config['models']['nuclei_model']
     crop_size = config['models']['crop_size']
+    tubule_prob = config['models']['tubule_prob']
+    nuclei_prob = config['models']['nuclei_prob']
 
     # Create output directory
     make_output_directory(output_folder)
@@ -107,33 +112,29 @@ if __name__ == "__main__":
             height, width = image[0].shape
             # Make empty masks for all segmented objects
             mask_for_tubules = np.zeros((height, width, 4), dtype=int)
-            mask__for_nuclei = np.zeros((height, width), dtype=int)
-            mask__for_lumen = np.zeros((height, width), dtype=int)
-            mask__for_prob = np.zeros((height, width), dtype=int)
-            step = 0
+            mask_for_nuclei = np.zeros((height, width), dtype=int)
+            mask_for_lumen = np.zeros((height, width), dtype=int)
+            mask_for_prob = np.zeros((height, width), dtype=int)
             mask_n = 1
-            mask_nucl_id = 1
-            mask_lumen_id = 1
-            nucleus_polygons = []
-            lumen_polygons = []
 
             # Make tiles with 50% interchange
-            for i in range(0, height - crop_size//2, crop_size//2):
-                for j in range(0, width - crop_size//2, crop_size//2):
+            for step_i in range(0, height - crop_size//2, crop_size//2):
+                for step_j in range(0, width - crop_size//2, crop_size//2):
                     # Determine mask layer to save polygons for crop
-                    if (i%crop_size==0) & (j%crop_size==0):
+                    if (step_i%crop_size==0) & (step_j%crop_size==0):
                         layer = 0
-                    elif (i%crop_size==0) & (j%crop_size!=0):
+                    elif (step_i%crop_size==0) & (step_j%crop_size!=0):
                         layer = 1
-                    elif (i%crop_size!=0) & (j%crop_size==0):
+                    elif (step_i%crop_size!=0) & (step_j%crop_size==0):
                         layer = 2
                     else:
                         layer = 3
 
                     # Make crop and filter them
-                    image_crop = image[:, i:i+crop_size, j:j+crop_size]
+                    image_crop = image[:, step_i:step_i+crop_size, step_j:step_j+crop_size]
                     image_crop = image_filter(image, image_crop, is_crop=True)
                     image_crop = (image_crop*255).transpose((1, 2, 0)).astype(np.uint8)
+                    image_crop = cv2.cvtColor(image_crop, cv2.COLOR_RGB2BGR)
                     # image_crop = (image_crop * 255).astype(np.uint8)
                     height_crop, width_crop, _ = image_crop.shape
 
@@ -143,10 +144,33 @@ if __name__ == "__main__":
                     # Get nuclei predictions
                     image_for_unet = image_to_unet(image_crop, crop_size).to(device)
                     nuclei_results = nuclei_model(image_for_unet)
-                    nuclei_results = (nuclei_results > 0.9).float()  # Binarize prediction
+                    nuclei_results = (nuclei_results > nuclei_prob).float()  # Binarize prediction
                     nuclei_results = nuclei_results.squeeze().cpu().numpy()
                     nuclei_results = np.array(Image.fromarray(nuclei_results.astype(np.uint8)*255)
                                               .resize((height_crop, width_crop)))
+
+                    # Add tubule polygons to whole masks
+                    (mask_for_tubules,
+                     mask_for_prob,
+                     mask_n) = tubule_contours(tubule_results,
+                                                mask_for_tubules,
+                                                mask_for_prob,
+                                                tubule_prob,
+                                                width_crop,
+                                                height_crop,
+                                                crop_size,
+                                                step_i,
+                                                step_j,
+                                                layer,
+                                                mask_n
+                                                )
+
+                    # Add nuclei polygons to whole masks
+                    mask_for_nuclei[step_i:step_i+crop_size,
+                                    step_j:step_j+crop_size] = np.where(nuclei_results>0, 1,
+                                                nuclei_results[step_i:step_i+crop_size,
+                                                               step_j:step_j+crop_size])
+
                     break
                 break
             break

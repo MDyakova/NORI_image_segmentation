@@ -3,6 +3,10 @@ Function to launch models
 """
 
 # import libraries
+import sys
+import os
+# Append the parent directory of `train_models` to the Python path
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -83,7 +87,15 @@ def image_filter(image, image_crop=None, is_crop=False):
     filtered_image = np.array(all_layers)
     return filtered_image
 
-#
+# polygons for test results
+def get_polygons_predict(mask_label):
+    """
+    Convert masks to polygons
+    """
+    polygons = Mask((mask_label>0)).polygons()
+    polygons = polygons.points
+    return polygons
+
 def image_to_unet(image_crop, crop_size):
     """
     Function to load a single image for unet model
@@ -99,3 +111,56 @@ def image_to_unet(image_crop, crop_size):
     # img = Image.fromarray(image).convert("RGB")
     img = transform(img)
     return img.unsqueeze(0)  # Add batch dimension
+
+def tubule_contours(tubule_results,
+                    mask_for_tubules,
+                    mask_for_prob,
+                    tubule_prob,
+                    width_crop,
+                    height_crop,
+                    crop_size,
+                    step_i,
+                    step_j,
+                    layer,
+                    mask_n
+                    ):
+    """
+    Function convert yolo predictions to masks
+    """
+    for result in tubule_results:
+        try:
+            for mask, prob in zip(result.masks.data, result.boxes.conf.cpu().numpy()):
+                if (np.array(mask.cpu()).sum()>2000):
+                    if prob>tubule_prob:
+                        # Convert mask to polygons
+                        # Model can return complex masks.
+                        # In this case function finds few polygons.
+                        mask = np.array(mask.cpu()) * 255
+                        mask = cv2.resize(mask, (width_crop, height_crop))
+                        polygons = get_polygons_predict(mask)
+
+                        # For each polygon set keep only with high area
+                        all_poligons_i = []
+                        for polygon in polygons:
+                            x, y = polygon[:, 0], polygon[:, 1]
+                            contour_i = np.array([[x[i], y[i]] for i in range(len(x))], dtype=np.int32).reshape((-1, 1, 2))
+                            area_i = cv2.contourArea(contour_i)
+                            if area_i>2000:
+                                all_poligons_i.append([polygon, area_i])
+
+                        # For each good polygon make mask and add unique id and probability to whole masks
+                        if len(all_poligons_i)>0:
+                            polygon = all_poligons_i[np.argmax([i[1] for i in all_poligons_i])][0]
+                            x, y = polygon[:, 0], polygon[:, 1]
+                            contour_i = np.array([[x[i], y[i]] for i in range(len(x))], dtype=np.int32).reshape((-1, 1, 2))
+                            mask = np.zeros((width_crop, height_crop), dtype=np.uint8)
+                            cv2.drawContours(mask, [contour_i], contourIdx=-1, color=255, thickness=cv2.FILLED)
+
+                            mask_for_tubules[step_i:step_i+crop_size, step_j:step_j+crop_size, layer] = np.where(mask>0, int(mask_n),
+                                                                                mask_for_tubules[step_i:step_i+crop_size, step_j:step_j+crop_size, layer])
+                            mask_for_prob[step_i:step_i+crop_size, step_j:step_j+crop_size] = np.where((mask>0), prob*100,
+                                                                            mask_for_prob[step_i:step_i+crop_size, step_j:step_j+crop_size])
+                        mask_n+=1
+        except Exception as e:
+            print(e)
+    return mask_for_tubules, mask_for_prob, mask_n
