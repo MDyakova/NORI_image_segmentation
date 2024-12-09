@@ -24,6 +24,7 @@ from tqdm import tqdm_notebook
 import zipfile
 import shutil
 from matplotlib.patches import Polygon
+from matplotlib.colors import ListedColormap
 
 from ultralytics import YOLO
 import os
@@ -43,7 +44,11 @@ from utilities import (make_output_directory,
                        image_filter,
                        image_to_unet,
                        tubule_contours,
-                       find_similar_contours_fast)
+                       find_similar_contours_fast,
+                       get_polygons_predict,
+                       lumen_predict,
+                       save_tiff)
+
 from train_models.model_utilities import UNet
 # from train_models.dataset_utilities import get_polygons_predict
 
@@ -77,6 +82,9 @@ if __name__ == "__main__":
     crop_size = config['models']['crop_size']
     tubule_prob = config['models']['tubule_prob']
     nuclei_prob = config['models']['nuclei_prob']
+    lumen_coef = config['models']['lumen_coef']
+    lumen_cluster_size = config['models']['lumen_cluster_size']
+    distance_threshold = config['models']['distance_threshold']
 
     # Create output directory
     make_output_directory(output_folder)
@@ -114,7 +122,6 @@ if __name__ == "__main__":
             # Make empty masks for all segmented objects
             mask_for_tubules = np.zeros((height, width, 4), dtype=int)
             mask_for_nuclei = np.zeros((height, width), dtype=int)
-            mask_for_lumen = np.zeros((height, width), dtype=int)
             mask_for_prob = np.zeros((height, width), dtype=int)
             mask_n = 1
 
@@ -135,6 +142,7 @@ if __name__ == "__main__":
                     image_crop = image[:, step_i:step_i+crop_size, step_j:step_j+crop_size]
                     image_crop = image_filter(image, image_crop, is_crop=True)
                     image_crop = (image_crop*255).transpose((1, 2, 0)).astype(np.uint8)
+                    Image.fromarray(image_crop).save('test_image.jpg', format="JPEG", quality=100, optimize=False)
                     image_crop = cv2.cvtColor(image_crop, cv2.COLOR_RGB2BGR)
                     # image_crop = (image_crop * 255).astype(np.uint8)
                     height_crop, width_crop, _ = image_crop.shape
@@ -143,10 +151,13 @@ if __name__ == "__main__":
                     tubule_results = tubule_model(image_crop)
 
                     # Get nuclei predictions
-                    image_for_unet = image_to_unet(image_crop, crop_size).to(device)
-                    nuclei_results = nuclei_model(image_for_unet)
-                    nuclei_results = (nuclei_results > nuclei_prob).float()  # Binarize prediction
-                    nuclei_results = nuclei_results.squeeze().cpu().numpy()
+                    # image_for_unet = image_to_unet(image_crop, crop_size).to(device)
+                    image_for_unet = image_to_unet('test_image.jpg', crop_size).to(device)
+                    with torch.no_grad():
+                        nuclei_results = nuclei_model(image_for_unet)
+                        nuclei_results = (nuclei_results > nuclei_prob).float()  # Binarize prediction
+                        print(nuclei_results.mean())
+                        nuclei_results = nuclei_results.squeeze().cpu().numpy()
                     nuclei_results = np.array(Image.fromarray(nuclei_results.astype(np.uint8)*255)
                                               .resize((width_crop, height_crop)))
 
@@ -176,6 +187,66 @@ if __name__ == "__main__":
                 # break
             # Join all crop masks to real contours
             all_masks = find_similar_contours_fast(mask_for_tubules)
+            all_contours = list(np.sort(pd.unique(all_masks.reshape(-1)))[::-1])
+
+            # Make picture for control
+            fig, ax = plt.subplots(1, 2, figsize=(36, 18))
+            ax[0].imshow(image_full)
+            ax[0].set_title(file_name_save)
+            ax[1].imshow(image_full)
+
+            # Add tubule contours to image and save polygon coordinates
+            polygons_save = []
+            while len(all_contours)>0:
+                contour_id = all_contours.pop()
+                if contour_id>0:
+                    mask = np.where(all_masks == contour_id, 1, 0)
+                    polygons = get_polygons_predict(mask)
+                    for polygon in polygons:
+                        x, y = polygon[:, 0], polygon[:, 1]
+                        x = np.append(x, x[0])
+                        y = np.append(y, y[0])
+                        ax[1].add_patch(Polygon(np.stack([x, y]).T,
+                                                fill=False,
+                                                edgecolor='white',
+                                                  linewidth=2))
+                        polygons_save.append([file_name_save, 'tubule', x, y])
+
+            polygons_save = pd.DataFrame(polygons_save,
+                                         columns=['file_name',
+                                                    'type', 'x', 'y'])
+            polygons_save.to_csv(os.path.join(labels_save,
+                                              file_name_save + '.csv'),
+                                              sep=';', index=False)
+
+            # Found lumen for each tubule contour
+            mask_for_lumen = lumen_predict(image_full,
+                                            all_masks,
+                                            lumen_coef,
+                                            distance_threshold,
+                                            lumen_cluster_size)
+
+            # Save results to tiff file
+            save_tiff(image,
+                      tiff_save,
+                      file_name_save,
+                      all_masks,
+                      mask_for_nuclei,
+                      mask_for_lumen,
+                      mask_for_prob)
+
+            # Add nuclei and lumen masks to control image
+            cmap = ListedColormap(['none', 'blue'])
+            ax[1].imshow(mask_for_lumen, cmap=cmap, alpha=0.8)
+
+            cmap = ListedColormap(['none', 'white'])
+            ax[1].imshow(mask_for_nuclei, cmap=cmap, alpha=0.8)
+
+            # Save control image
+            file_path_save = os.path.join(images_save,
+                                          file_name_save + '.png')
+            plt.savefig(file_path_save, dpi=600, format='png', bbox_inches='tight')
+            plt.close()
             break
 
 # time.sleep(1000)

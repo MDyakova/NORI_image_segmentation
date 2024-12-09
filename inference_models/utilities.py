@@ -38,6 +38,7 @@ from sklearn.metrics import f1_score
 import albumentations as A
 from albumentations.pytorch import ToTensorV2
 from torchvision import models
+from sklearn.cluster import AgglomerativeClustering
 
 def make_output_directory(output_folder):
     """
@@ -98,7 +99,8 @@ def get_polygons_predict(mask_label):
     polygons = polygons.points
     return polygons
 
-def image_to_unet(image_crop, crop_size):
+# def image_to_unet(image_crop, crop_size):
+def image_to_unet(image_path, crop_size):
     """
     Function to load a single image for unet model
     """
@@ -109,7 +111,9 @@ def image_to_unet(image_crop, crop_size):
         transforms.Normalize(mean=(0.485, 0.456, 0.406), std=(0.229, 0.224, 0.225))
     ])
     # Convert image to unet format
-    img = Image.fromarray(image_crop.astype('uint8')).convert("RGB")
+    # img = Image.fromarray(image_crop.astype('uint8')).convert("RGB")
+    img = Image.open(image_path).convert("RGB")
+
     # img = Image.fromarray(image).convert("RGB")
     img = transform(img)
     return img.unsqueeze(0)  # Add batch dimension
@@ -191,6 +195,9 @@ def join_pairs(pairs):
     return [list(group) for group in unique_groups]
 
 def find_similar_contours_fast(image_for_masks):
+    """
+    Function join small contours on different crops to big real size contours
+    """
     mask_id, numbers = np.unique(image_for_masks.reshape(-1), return_counts=True)
     mask_numbers = dict(zip(mask_id, numbers))
     groups_short = [image_for_masks[i, j, :] for i in range(image_for_masks.shape[0]) for j in range(image_for_masks.shape[1])]
@@ -222,3 +229,87 @@ def find_similar_contours_fast(image_for_masks):
             image_for_masks[image_for_masks == similar_id] = main_id
     image_for_masks_max = image_for_masks.max(axis=2)
     return image_for_masks_max
+
+# prompt: ierarchical clustering for lumen coords
+
+def hierarchical_clustering(lumen_coords,
+                            distance_threshold=5,
+                            min_cluster_size=75):
+    """
+    Function join dark dots to clusters
+    """
+
+    # Reshape the coordinates for clustering
+    coords = np.column_stack((lumen_coords[0], lumen_coords[1]))
+
+    # Apply hierarchical clustering
+    agg_clustering = AgglomerativeClustering(n_clusters=None,
+                                             distance_threshold=distance_threshold)
+    agg_clustering.fit(coords)
+
+    # Get the cluster labels
+    cluster_labels = agg_clustering.labels_
+
+    # # Now we will add the minimum cluster size filter
+    min_cluster_size = min_cluster_size  # Set your minimum cluster size here
+
+    # # Count the number of points in each cluster
+    unique_labels, counts = np.unique(cluster_labels, return_counts=True)
+
+    # Filter out clusters that are smaller than the minimum size
+    valid_clusters = unique_labels[counts >= min_cluster_size]
+
+    # # Create a mask for coordinates belonging to valid clusters
+    valid_coords_mask = np.isin(cluster_labels, valid_clusters)
+
+    # Filter the coordinates and labels based on the valid clusters
+    filtered_coords = coords[valid_coords_mask]
+
+    return filtered_coords
+
+def lumen_predict(full_image,
+                  all_masks,
+                  lumen_coeff,
+                  distance_threshold,
+                  lumen_cluster_size):
+    """
+    Function recognize lumen clusters on whole nori image
+    """
+    # Make layer for protein, lipid and water (still is 0)
+
+    im_mean = np.array(full_image).max(axis=2)
+    mask_for_lumen = np.zeros(im_mean.shape, dtype=np.uint8)
+
+    # Find clusters inside each tubule contour
+    all_tubules_id = pd.unique(all_masks.reshape(-1))
+    for step, tubule_id in enumerate(all_tubules_id):
+        if tubule_id!=0:
+            mask = np.zeros(all_masks.shape, dtype=np.uint8)
+            mask[np.where(all_masks==tubule_id)] = 1
+            mask_label = np.where(mask>0, im_mean, 255)
+            lumen_coords = np.where(mask_label<lumen_coeff)
+            # Filter very extrime results for bit black areas
+            if (len(lumen_coords[0])>30) & (len(lumen_coords[0])<100000):
+                # Get cluster coordinates
+                filtered_coords = hierarchical_clustering(lumen_coords,
+                                                        distance_threshold=distance_threshold,
+                                                        min_cluster_size=lumen_cluster_size)
+                # Save lumen to mask
+                for coord in filtered_coords:
+                    mask_for_lumen[int(coord[0]), int(coord[1])] = 1
+    return mask_for_lumen
+
+def save_tiff(image, directory_tiff_save, file_name_save, all_masks, image_for_nucl, image_for_lumen, image_for_prob):
+    save_layers = [0, 1, 2]
+    file_name_save = os.path.join(directory_tiff_save,
+                                  file_name_save + '.tiff')
+    tiff_layers = []
+    for layer_id, layer in enumerate(image):
+        if layer_id in save_layers:
+            tiff_layers.append(Image.fromarray(layer))
+    tiff_layers.append(Image.fromarray(all_masks.astype(np.uint8)))
+    tiff_layers.append(Image.fromarray(image_for_nucl.astype(np.uint8)))
+    tiff_layers.append(Image.fromarray(image_for_lumen.astype(np.uint8)))
+    tiff_layers.append(Image.fromarray(image_for_prob.astype(np.uint8)))
+    layers_converted = [layer.convert("F") for layer in tiff_layers]
+    layers_converted[0].save(file_name_save, save_all=True, append_images=layers_converted[1:])
