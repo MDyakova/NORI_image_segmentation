@@ -52,7 +52,7 @@ def make_dataset_directory(dataset_folder, dataset_name, target_name='labels'):
         folders = ['images', 'masks']
     for folder in folders:
         for set_folder in ['train', 'val']:
-            os.makedirs(os.path.join(os.path.join(dataset_folder, dataset_name),
+            os.makedirs(os.path.join(dataset_folder, dataset_name,
                                      folder, set_folder), exist_ok=True)
 
 def train_val_split(nori_images):
