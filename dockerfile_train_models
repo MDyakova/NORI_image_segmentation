@@ -16,7 +16,7 @@ RUN chmod -R 777 /train_models
 WORKDIR /train_models
 
 # Run unit-tests
-RUN python3 unit_tests.py
+RUN python3 -m pytest unit_tests.py
 
 # Launch code
 ENTRYPOINT ["python"]

@@ -21,20 +21,6 @@ import shutil
 from matplotlib.patches import Polygon
 import json
 
-# # Load config
-
-# with open(os.path.join(os.path.join('train_directory', 'train_config.json')),
-#           'r',
-#           encoding='utf-8') as f:
-#     config = json.load(f)
-
-# # Sample's info
-# nori_images = config['data_information']['nori_images']
-# protein_layer = config['data_information']['protein_layer']
-# lipid_layer = config['data_information']['lipid_layer']
-# tubule_masks_layer = config['data_information']['tubule_masks_layer']
-# nuclei_masks_layer = config['data_information']['nuclei_masks_layer']
-
 def make_dataset_directory(dataset_folder, dataset_name, target_name='labels'):
     """
     Make directory for dataset

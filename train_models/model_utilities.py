@@ -76,7 +76,7 @@ def get_val_augmentations():
 
 class UnetDataset(Dataset):
     """
-    Create dataset for Uet model
+    Create dataset for Unet model
     """
     def __init__(self, image_dir, mask_dir, augmentations=None):
         self.image_dir = image_dir
