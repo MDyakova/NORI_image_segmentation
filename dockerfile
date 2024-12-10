@@ -12,11 +12,10 @@ RUN pip3 install --no-cache-dir --upgrade pip && \
 # Copy inference directory
 COPY inference_models /inference_models
 RUN chmod -R 777 /inference_models
-
-# # Run unit-tests
-# RUN python3 pytest tests/unit_tests.py
-
 WORKDIR /inference_models
+
+# Run unit-tests
+RUN python3 -m pytest unit_tests.py
 
 # Launch code
 ENTRYPOINT ["python"]

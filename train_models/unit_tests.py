@@ -1,5 +1,5 @@
 """
-Unit tests for main functions
+Unit tests for train functions
 """
 
 # import libraries
