@@ -23,6 +23,7 @@ if __name__ == "__main__":
     protein_layer = config['data_information']['protein_layer']
     lipid_layer = config['data_information']['lipid_layer']
     tubule_masks_layer = config['data_information']['tubule_masks_layer']
+    nuclei_masks_layer = config['data_information']['nuclei_masks_layer']
 
     # Model's info
     model_name = config['tubule_yolo_model']['model_information']['model_name']
@@ -49,17 +50,27 @@ if __name__ == "__main__":
 
     # save train subset
     save_subset(train_images,
+                nori_images,
                 'train',
                 dataset_folder,
                 crop_size,
+                tubule_masks_layer,
+                nuclei_masks_layer,
+                protein_layer,
+                lipid_layer,
                 object='tubule',
                 modifications=modifications,
                 model_type='yolo')
     # save validation subset
     save_subset(val_images,
+                nori_images,
                 'val',
                 dataset_folder,
                 crop_size,
+                tubule_masks_layer,
+                nuclei_masks_layer,
+                protein_layer,
+                lipid_layer,
                 object='tubule',
                 modifications=False,
                 model_type='yolo')
