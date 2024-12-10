@@ -99,8 +99,7 @@ def get_polygons_predict(mask_label):
     polygons = polygons.points
     return polygons
 
-# def image_to_unet(image_crop, crop_size):
-def image_to_unet(image_path, crop_size):
+def image_to_unet(image_crop, crop_size):
     """
     Function to load a single image for unet model
     """
@@ -111,10 +110,7 @@ def image_to_unet(image_path, crop_size):
         transforms.Normalize(mean=(0.485, 0.456, 0.406), std=(0.229, 0.224, 0.225))
     ])
     # Convert image to unet format
-    # img = Image.fromarray(image_crop.astype('uint8')).convert("RGB")
-    img = Image.open(image_path).convert("RGB")
-
-    # img = Image.fromarray(image).convert("RGB")
+    img = Image.fromarray(image_crop.astype('uint8')).convert("RGB")
     img = transform(img)
     return img.unsqueeze(0)  # Add batch dimension
 

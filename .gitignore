@@ -163,3 +163,4 @@ cython_debug/
 
 # Folders
 work_directory/*
+inference_models/default_models/*

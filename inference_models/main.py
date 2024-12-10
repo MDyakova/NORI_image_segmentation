@@ -142,21 +142,18 @@ if __name__ == "__main__":
                     image_crop = image[:, step_i:step_i+crop_size, step_j:step_j+crop_size]
                     image_crop = image_filter(image, image_crop, is_crop=True)
                     image_crop = (image_crop*255).transpose((1, 2, 0)).astype(np.uint8)
-                    Image.fromarray(image_crop).save('test_image.jpg', format="JPEG", quality=100, optimize=False)
-                    image_crop = cv2.cvtColor(image_crop, cv2.COLOR_RGB2BGR)
-                    # image_crop = (image_crop * 255).astype(np.uint8)
+                    image_crop_for_yolo = cv2.cvtColor(image_crop, cv2.COLOR_RGB2BGR)
                     height_crop, width_crop, _ = image_crop.shape
 
                     # Get tubule predictions
-                    tubule_results = tubule_model(image_crop)
+                    tubule_results = tubule_model(image_crop_for_yolo)
 
                     # Get nuclei predictions
-                    # image_for_unet = image_to_unet(image_crop, crop_size).to(device)
-                    image_for_unet = image_to_unet('test_image.jpg', crop_size).to(device)
+                    image_for_unet = image_to_unet(image_crop, crop_size).to(device)
+
                     with torch.no_grad():
                         nuclei_results = nuclei_model(image_for_unet)
                         nuclei_results = (nuclei_results > nuclei_prob).float()  # Binarize prediction
-                        print(nuclei_results.mean())
                         nuclei_results = nuclei_results.squeeze().cpu().numpy()
                     nuclei_results = np.array(Image.fromarray(nuclei_results.astype(np.uint8)*255)
                                               .resize((width_crop, height_crop)))
@@ -183,8 +180,6 @@ if __name__ == "__main__":
                                                 mask_for_nuclei[step_i:step_i+crop_size,
                                                                step_j:step_j+crop_size])
 
-                #     break
-                # break
             # Join all crop masks to real contours
             all_masks = find_similar_contours_fast(mask_for_tubules)
             all_contours = list(np.sort(pd.unique(all_masks.reshape(-1)))[::-1])
@@ -247,7 +242,6 @@ if __name__ == "__main__":
                                           file_name_save + '.png')
             plt.savefig(file_path_save, dpi=600, format='png', bbox_inches='tight')
             plt.close()
-            break
 
 # time.sleep(1000)
 
