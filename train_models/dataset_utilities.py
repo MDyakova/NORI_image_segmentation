@@ -21,22 +21,19 @@ import shutil
 from matplotlib.patches import Polygon
 import json
 
-from augmentation_utilities import (add_salt_and_pepper_noise,
-                                    change_resolution_pil)
+# # Load config
 
-# Load config
+# with open(os.path.join(os.path.join('train_directory', 'train_config.json')),
+#           'r',
+#           encoding='utf-8') as f:
+#     config = json.load(f)
 
-with open(os.path.join(os.path.join('train_directory', 'train_config.json')),
-          'r',
-          encoding='utf-8') as f:
-    config = json.load(f)
-
-# Sample's info
-nori_images = config['data_information']['nori_images']
-protein_layer = config['data_information']['protein_layer']
-lipid_layer = config['data_information']['lipid_layer']
-tubule_masks_layer = config['data_information']['tubule_masks_layer']
-nuclei_masks_layer = config['data_information']['nuclei_masks_layer']
+# # Sample's info
+# nori_images = config['data_information']['nori_images']
+# protein_layer = config['data_information']['protein_layer']
+# lipid_layer = config['data_information']['lipid_layer']
+# tubule_masks_layer = config['data_information']['tubule_masks_layer']
+# nuclei_masks_layer = config['data_information']['nuclei_masks_layer']
 
 def make_dataset_directory(dataset_folder, dataset_name, target_name='labels'):
     """
@@ -116,8 +113,11 @@ def get_polygons(mask, fix_contour=True):
             all_polygons.append(polygon_nornalized)
     return all_polygons
 
-def load_images(file_name,
+def load_images(nori_images,
+                file_name,
                 mask_layer,
+                protein_layer,
+                lipid_layer,
                 crop_size=640):
     """
     Load and preprocessing big tiff images and masks to tiles
@@ -184,6 +184,26 @@ def save_polygons(all_polygons, file_name_save, directory, dataset_folder):
               else:
                   file.write('{} '.format(p))
 
+def add_salt_and_pepper_noise(image, salt_prob=0.01, pepper_prob=0.01):
+    """
+    Function add noise like small white and black dots.
+    """
+    noisy_image = np.copy(image)
+    salt_mask = np.random.choice([0, 1], size=image.shape, p=[1 - salt_prob, salt_prob])
+    pepper_mask = np.random.choice([0, 1], size=image.shape, p=[1 - pepper_prob, pepper_prob])
+    noisy_image[salt_mask == 1] = 255  # Salt
+    noisy_image[pepper_mask == 1] = 0  # Pepper
+    return noisy_image
+
+def change_resolution_pil(image, width, height):
+    """
+    Function dicrease image resolution
+    for bad quality of data
+    """
+    resized_image = image.resize((width, height),
+                                 Image.Resampling.LANCZOS)
+    return resized_image
+
 def save_train_data(image,
                     dataset_folder,
                     directory,
@@ -219,9 +239,14 @@ def save_train_data(image,
                     optimize=False)
 
 def save_subset(images,
+                nori_images,
                 directory,
                 dataset_folder,
                 crop_size,
+                tubule_masks_layer,
+                nuclei_masks_layer,
+                protein_layer,
+                lipid_layer,
                 object='tubule',
                 modifications=False,
                 model_type='yolo'):
@@ -236,7 +261,8 @@ def save_subset(images,
     for file_name in images[0:]:
         (all_images,
         all_masks,
-        all_images_names) = load_images(file_name, mask_layer,
+        all_images_names) = load_images(nori_images, file_name, mask_layer,
+                                        protein_layer, lipid_layer,
                                         crop_size=crop_size)
 
         for image, mask, image_name in zip(all_images, all_masks, all_images_names):
@@ -288,5 +314,3 @@ def save_subset(images,
                                 file_name_save_new,
                                 target,
                                 model_type)
-
-

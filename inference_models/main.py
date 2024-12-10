@@ -47,12 +47,8 @@ from utilities import (make_output_directory,
                        find_similar_contours_fast,
                        get_polygons_predict,
                        lumen_predict,
-                       save_tiff)
-
-from train_models.model_utilities import UNet
-# from train_models.dataset_utilities import get_polygons_predict
-
-
+                       save_tiff,
+                       UNet)
 import time
 
 # time.sleep(10000)
