@@ -164,7 +164,7 @@ The `train_config.json` file provides necessary information for training the mod
             "crop_size": 640
         },
         "model_config": {
-            "epochs": 2,
+            "epochs": 200,
             "imgsz": 640,
             "batch": 16,
             "patience": 30,
@@ -179,7 +179,7 @@ The `train_config.json` file provides necessary information for training the mod
             "crop_size": 640
         },
         "model_config": {
-            "epochs": 2,
+            "epochs": 200,
             "batch": 8,
             "patience": 30,
             "learning_rate": 0.0001
