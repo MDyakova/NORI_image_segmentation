@@ -162,5 +162,5 @@ cython_debug/
 #.idea/
 
 # Folders
-work_directory/*
+# work_directory/*
 inference_models/default_models/*

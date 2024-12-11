@@ -1,0 +1,38 @@
+{
+    "data_information": {
+        "nori_images" : "train_directory/data/mouse_kidney",
+	    "protein_layer" : 0,
+        "lipid_layer" : 1,
+        "tubule_masks_layer" : 10,
+        "nuclei_masks_layer" : 9
+    },
+    "tubule_yolo_model": {
+        "model_information": {
+            "model_name" : "kidney_tubule_model_12-06-2024",
+            "modifications" : true,
+            "crop_size" : 640
+        },
+        "model_config": {
+            "epochs" : 200,
+            "imgsz" : 640,
+            "batch" : 16,
+            "patience" : 30,
+            "overlap_mask" : false,
+            "object_type": "tubule"
+        }
+    },
+    "nuclei_unet_model": {
+        "model_information": {
+            "model_name" : "kidney_nuclei_model_12-06-2024",
+            "modifications" : false,
+            "crop_size" : 640
+        },
+        "model_config": {
+            "epochs" : 200,
+            "batch" : 8,
+            "patience" : 30,
+            "learning_rate" : 0.0001
+
+        }
+    }
+}
