@@ -3,81 +3,67 @@ Function to train models
 """
 
 # import libraries
-# import libraries
+import os
+import shutil
 import numpy as np
 import pandas as pd
-import matplotlib.pyplot as plt
-
-from PIL import Image, ImageDraw
-import tifffile
-from tifffile import TiffFile
-import cv2
-import os
-from imantics import Polygons, Mask
-from tqdm import tqdm_notebook
-
-import zipfile
-import shutil
-from matplotlib.patches import Polygon
-
-
-import os
-import numpy as np
-import torch
-import torch.nn as nn
-import torch.optim as optim
-from torch.utils.data import Dataset, DataLoader
-from torchvision import transforms
 from PIL import Image
-from sklearn.metrics import f1_score
+import torch
+from torch import nn, optim
+from torch.utils.data import Dataset
 import albumentations as A
 from albumentations.pytorch import ToTensorV2
-from torchvision import models
 
 def make_yolo_config(config_path, object_type, model_name):
     """
     Create config for ultralitic library
     """
-    with open(config_path,
-            'w',
-            encoding='utf-8') as file:
-        file.write(f'path: {model_name}\n')
-        file.write('train: images/train\n')
-        file.write('val: images/val\n')
-        file.write('nc: 1\n')
+    with open(config_path, "w", encoding="utf-8") as file:
+        file.write(f"path: {model_name}\n")
+        file.write("train: images/train\n")
+        file.write("val: images/val\n")
+        file.write("nc: 1\n")
         file.write(f'names: ["{object_type}"]\n')
+
 
 def get_train_augmentations():
     """
     Define training augmentations including resizing
     """
-    return A.Compose([
-        A.Resize(640, 640),
-        A.HorizontalFlip(p=0.5),
-        A.VerticalFlip(p=0.5),
-        A.RandomRotate90(p=0.5),
-        A.RandomBrightnessContrast(p=0.2),
-        A.ShiftScaleRotate(shift_limit=0.1, scale_limit=0.2, rotate_limit=15, p=0.5),
-        A.Normalize(mean=(0.485, 0.456, 0.406), std=(0.229, 0.224, 0.225)),
-        ToTensorV2(),
-    ])
+    return A.Compose(
+        [
+            A.Resize(640, 640),
+            A.HorizontalFlip(p=0.5),
+            A.VerticalFlip(p=0.5),
+            A.RandomRotate90(p=0.5),
+            A.RandomBrightnessContrast(p=0.2),
+            A.ShiftScaleRotate(
+                shift_limit=0.1, scale_limit=0.2, rotate_limit=15, p=0.5
+            ),
+            A.Normalize(mean=(0.485, 0.456, 0.406), std=(0.229, 0.224, 0.225)),
+            ToTensorV2(),
+        ]
+    )
 
 
 def get_val_augmentations():
     """
     Define validation augmentations (only resizing and normalization)
     """
-    return A.Compose([
-        A.Resize(640, 640),
-        A.Normalize(mean=(0.485, 0.456, 0.406), std=(0.229, 0.224, 0.225)),
-        ToTensorV2(),
-    ])
+    return A.Compose(
+        [
+            A.Resize(640, 640),
+            A.Normalize(mean=(0.485, 0.456, 0.406), std=(0.229, 0.224, 0.225)),
+            ToTensorV2(),
+        ]
+    )
 
 
 class UnetDataset(Dataset):
     """
     Create dataset for Unet model
     """
+
     def __init__(self, image_dir, mask_dir, augmentations=None):
         self.image_dir = image_dir
         self.mask_dir = mask_dir
@@ -104,16 +90,16 @@ class UnetDataset(Dataset):
 
         # Normalize mask to [0, 1] if needed
         mask = (mask > 0).float()  # Convert to binary mask with values 0 or 1
-        mask = mask.unsqueeze(0)   # Add channel dimension
+        mask = mask.unsqueeze(0)  # Add channel dimension
 
         return image, mask
-
 
 
 class UNet(nn.Module):
     """
     Define the U-Net Model
     """
+
     def __init__(self):
         super(UNet, self).__init__()
 
@@ -143,6 +129,9 @@ class UNet(nn.Module):
         self.final = nn.Conv2d(64, 1, kernel_size=1)
 
     def conv_block(self, in_channels, out_channels):
+        """
+        Add convolutional block
+        """
         return nn.Sequential(
             nn.Conv2d(in_channels, out_channels, kernel_size=3, padding=1),
             nn.ReLU(inplace=True),
@@ -150,8 +139,11 @@ class UNet(nn.Module):
             nn.ReLU(inplace=True),
         )
 
-    def forward(self, x):
-        enc1 = self.enc1(x)
+    def forward(self, input_x):
+        """
+        Main network architecture
+        """
+        enc1 = self.enc1(input_x)
         enc2 = self.enc2(nn.MaxPool2d(2)(enc1))
         enc3 = self.enc3(nn.MaxPool2d(2)(enc2))
         enc4 = self.enc4(nn.MaxPool2d(2)(enc3))
@@ -175,40 +167,44 @@ class UNet(nn.Module):
 
         return torch.sigmoid(self.final(dec1))
 
+
 def calculate_dice(preds, targets, threshold=0.5):
     """
     Function to compute Dice coefficient
     """
     preds = (preds > threshold).float()  # Binarize predictions
     intersection = (preds * targets).sum()
-    dice = (2. * intersection) / (preds.sum() + targets.sum() + 1e-8)  # Add small epsilon for stability
+    dice = (2.0 * intersection) / (
+        preds.sum() + targets.sum() + 1e-8
+    )  # Add small epsilon for stability
     return dice.item()
 
-def unet_train(train_loader,
-               val_loader,
-               model_dir,
-               model_name,
-               num_epochs=50,
-               lr=1e-4,
-               patience=20):
+
+def unet_train(
+    train_loader,
+    val_loader,
+    model_dir,
+    model_name,
+    num_epochs=50,
+    learning_rate=1e-4,
+    patience=20
+):
     """
     Train and save unet model
     """
-    shutil.rmtree(os.path.join(model_dir, model_name),
-                ignore_errors=True)
-    os.makedirs(os.path.join(model_dir, model_name),
-                exist_ok=True)
+    shutil.rmtree(os.path.join(model_dir, model_name), ignore_errors=True)
+    os.makedirs(os.path.join(model_dir, model_name), exist_ok=True)
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model = UNet().to(device)
 
     # Define loss function and optimizer
     criterion = nn.BCELoss()
-    optimizer = optim.Adam(model.parameters(), lr=lr)
+    optimizer = optim.Adam(model.parameters(), lr=learning_rate)
 
     # Training with Dice metric and best model saving
     best_dice = 0.0  # Initialize the best Dice coefficient
-    epoch_no_saved = 0 # Epochs number without model saving
+    epoch_no_saved = 0  # Epochs number without model saving
     best_model_path = os.path.join(model_dir, model_name, model_name + ".pth")
 
     for epoch in range(num_epochs):
@@ -259,17 +255,28 @@ def unet_train(train_loader,
             is_saved = 1
             epoch_no_saved = 0
         else:
-            epoch_no_saved+=1
+            epoch_no_saved += 1
 
-        results_table = [[f'{epoch+1}', train_loss, val_loss, val_dice, is_saved]]
-        columns = ('Epoch', 'Train Loss', 'Validation Loss', 'Validation Dice', 'Model saved')
+        results_table = [[f"{epoch+1}", train_loss, val_loss, val_dice, is_saved]]
+        columns = (
+            "Epoch",
+            "Train Loss",
+            "Validation Loss",
+            "Validation Dice",
+            "Model saved",
+        )
         results_table = pd.DataFrame(results_table, columns=columns)
-        if epoch==0:
-            results_table.to_csv(os.path.join(model_dir, model_name, 'results.csv'),
-                                 index=None)
+        if epoch == 0:
+            results_table.to_csv(
+                os.path.join(model_dir, model_name, "results.csv"), index=None
+            )
         else:
-            results_table.to_csv(os.path.join(model_dir, model_name, 'results.csv'),
-                                    index=None, mode='a', header=None)
+            results_table.to_csv(
+                os.path.join(model_dir, model_name, "results.csv"),
+                index=None,
+                mode="a",
+                header=None,
+            )
 
         if epoch_no_saved > patience:
             break
