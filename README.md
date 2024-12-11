@@ -21,6 +21,11 @@ The project aims to:
 
 ---
 
+## 📁 **Data Samples**
+Explore sample datasets from the project on [Kaggle](https://www.kaggle.com/competitions/kidney-segmentation-of-novel-microscopy-images/overview).
+
+---
+
 ## 📁 **Repository Structure**
 
 The repository includes a `work_directory` with the following structure:
