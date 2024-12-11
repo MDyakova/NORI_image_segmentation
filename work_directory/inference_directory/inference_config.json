@@ -1,0 +1,20 @@
+{
+    "data_information": {
+        "nori_images" : "inference_directory/data/mouse_kidney",
+	    "protein_layer" : 0,
+        "lipid_layer" : 1
+    },
+    "output_information": {
+        "output_folder" : "inference_directory/new_kindey_samples_12-11-24"
+    },
+    "models": {
+        "tubule_model" : "default_models/best_tubule_model.pt",
+        "nuclei_model" : "default_models/best_nuclei_model.pth",
+        "crop_size" : 640,
+        "tubule_prob" : 0.5,
+        "nuclei_prob" : 0.5,
+        "lumen_coef" : 100,
+        "lumen_cluster_size": 100,
+        "distance_threshold" : 200
+    }
+}
