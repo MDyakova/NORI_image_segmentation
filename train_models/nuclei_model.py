@@ -110,6 +110,6 @@ if __name__ == "__main__":
         model_dir,
         model_name,
         num_epochs=epochs,
-        lr=learning_rate,
+        learning_rate=learning_rate,
         patience=patience,
     )

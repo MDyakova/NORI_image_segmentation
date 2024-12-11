@@ -22,7 +22,6 @@ def make_output_directory(output_folder):
     """
     Make directory for outputs
     """
-    shutil.rmtree(output_folder, ignore_errors=True)
     os.makedirs(output_folder, exist_ok=True)
 
     folders = ["images", "labels", "tiff_files"]

@@ -97,7 +97,7 @@ if __name__ == "__main__":
             mask_for_tubules = np.zeros((height, width, 4), dtype=int)
             mask_for_nuclei = np.zeros((height, width), dtype=int)
             mask_for_prob = np.zeros((height, width), dtype=int)
-            M = 1
+            mask_n = 1
 
             # Make tiles with 50% interchange
             for step_i in range(0, height - crop_size // 2, crop_size // 2):
