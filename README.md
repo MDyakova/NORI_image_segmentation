@@ -1,6 +1,6 @@
 # NoRI Image Segmentation
 
-This repository contains tools for segmenting tubules and associated features from whole kidneys imaged using **Novel Refractive Index (NoRI) Microscopy**, a cutting-edge approach developed at Marc Kirschner's lab at Harvard.
+This repository contains tools for segmenting tubules and associated features from whole kidneys imaged using **normalised stimulated Raman spectroscopy (NoRI) microscopy**, a cutting-edge approach developed at Marc Kirschner's lab at Harvard.
 
 ## 🚀 **Project Description**
 Traditional histopathology relies on qualitative and subjective assessments. This project leverages NoRI microscopy to deliver **quantitative insights** into protein and lipid distributions in biological samples at sub-cellular resolution. The approach is being applied to study kidney tissue biology in health and disease.
