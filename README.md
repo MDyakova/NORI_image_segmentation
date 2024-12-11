@@ -104,8 +104,8 @@ The `inference_config.json` file provides necessary information for running the 
 {
     "data_information": {
         "nori_images": "inference_directory/data/{your_nori_samples}",
-        "protein_layer": {protein_layer_in_nori_tiff_file},
-        "lipid_layer": {lipid_layer_in_nori_tiff_file}
+        "protein_layer": 0,
+        "lipid_layer": 1
     },
     "output_information": {
         "output_folder": "inference_directory/{folder_for_segmentation_results}"
